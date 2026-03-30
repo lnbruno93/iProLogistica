@@ -1,0 +1,856 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>iPro — Gestión de Envíos</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:#0d0d0f; --surface:#151518; --surface2:#1c1c21; --surface3:#222228;
+  --border:rgba(255,255,255,0.07); --border2:rgba(255,255,255,0.13); --border3:rgba(255,255,255,0.2);
+  --text:#f0f0f2; --muted:#8a8a96; --faint:#4a4a54;
+  --accent:#e8ff57; --accent-dim:rgba(232,255,87,0.1); --accent-border:rgba(232,255,87,0.25);
+  --green:#4ade80; --green-dim:rgba(74,222,128,0.1); --green-border:rgba(74,222,128,0.25);
+  --amber:#fbbf24; --amber-dim:rgba(251,191,36,0.1); --amber-border:rgba(251,191,36,0.25);
+  --blue:#60a5fa; --blue-dim:rgba(96,165,250,0.1); --blue-border:rgba(96,165,250,0.25);
+  --red:#f87171; --red-dim:rgba(248,113,113,0.1); --red-border:rgba(248,113,113,0.25);
+  --r:10px; --rl:14px;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html{font-size:15px;}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;}
+
+/* ─── TOPBAR ─── */
+.topbar{position:sticky;top:0;z-index:80;background:rgba(13,13,15,0.93);backdrop-filter:blur(16px);border-bottom:1px solid var(--border);height:56px;padding:0 20px;display:flex;align-items:center;justify-content:space-between;gap:12px;}
+.brand{display:flex;align-items:baseline;gap:8px;flex-shrink:0;}
+.brand-name{font-family:'DM Mono',monospace;font-size:16px;font-weight:500;color:var(--accent);}
+.brand-sub{font-size:12px;color:var(--muted);font-weight:300;letter-spacing:0.4px;}
+.topbar-right{display:flex;align-items:center;gap:8px;}
+.sync-dot{width:7px;height:7px;border-radius:50%;background:var(--green);flex-shrink:0;transition:background .3s;}
+.sync-dot.loading{background:var(--amber);animation:pulse .8s ease-in-out infinite;}
+.sync-dot.error{background:var(--red);}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+.sync-label{font-size:11px;color:var(--muted);}
+
+/* ─── TABS ─── */
+.tabs{display:flex;gap:2px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--r);padding:3px;}
+.tab{font-size:12px;font-weight:500;padding:5px 14px;border-radius:7px;cursor:pointer;color:var(--muted);border:none;background:transparent;transition:all .15s;white-space:nowrap;}
+.tab.active{background:var(--surface3);color:var(--text);border:1px solid var(--border2);}
+
+/* ─── BUTTONS ─── */
+.btn{font-family:'DM Sans',sans-serif;font-size:13px;font-weight:500;padding:7px 15px;border-radius:var(--r);border:1px solid var(--border2);background:transparent;color:var(--text);cursor:pointer;transition:all .15s;white-space:nowrap;}
+.btn:hover{background:var(--surface2);}
+.btn.primary{background:var(--accent);color:#0d0d0f;border-color:transparent;font-weight:600;}
+.btn.primary:hover{opacity:.88;}
+.btn.sm{font-size:12px;padding:5px 12px;}
+.btn:disabled{opacity:.4;cursor:not-allowed;}
+
+/* ─── LAYOUT ─── */
+.page{max-width:1000px;margin:0 auto;padding:24px 20px 80px;}
+.view{display:none;}.view.active{display:block;}
+
+/* ─── SETUP BANNER ─── */
+.setup-banner{background:var(--amber-dim);border:1px solid var(--amber-border);border-radius:var(--rl);padding:16px 20px;margin-bottom:20px;display:none;}
+.setup-banner.visible{display:block;}
+.setup-banner p{font-size:13px;color:var(--amber);line-height:1.6;}
+.setup-banner code{font-family:'DM Mono',monospace;font-size:12px;background:rgba(251,191,36,0.15);padding:2px 7px;border-radius:4px;}
+.setup-banner input{font-family:'DM Mono',monospace;font-size:13px;background:var(--surface2);border:1px solid var(--amber-border);border-radius:var(--r);color:var(--text);padding:8px 12px;width:100%;margin-top:10px;outline:none;}
+.setup-banner input:focus{border-color:var(--amber);}
+
+/* ─── STATS ─── */
+.stats-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px;margin-bottom:20px;}
+.stat{background:var(--surface);border:1px solid var(--border);border-radius:var(--rl);padding:14px 16px;}
+.stat-lbl{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.7px;margin-bottom:6px;}
+.stat-val{font-family:'DM Mono',monospace;font-size:24px;font-weight:500;line-height:1;}
+.stat-val.g{color:var(--green);}.stat-val.a{color:var(--amber);}.stat-val.b{color:var(--blue);}.stat-val.ac{color:var(--accent);}
+
+/* ─── DATE NAV ─── */
+.date-row{display:flex;align-items:center;gap:8px;margin-bottom:20px;flex-wrap:wrap;}
+.date-nav button{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);color:var(--text);cursor:pointer;width:32px;height:32px;font-size:16px;display:flex;align-items:center;justify-content:center;transition:background .15s;}
+.date-nav button:hover{background:var(--surface2);}
+.date-nav{display:flex;align-items:center;gap:4px;}
+.date-display{font-family:'DM Mono',monospace;font-size:13px;color:var(--text);background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:5px 14px;height:32px;display:flex;align-items:center;cursor:pointer;white-space:nowrap;}
+.date-display:hover{border-color:var(--border2);}
+input[type=date]{font-family:'DM Sans',sans-serif;font-size:13px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);color:var(--text);padding:8px 12px;outline:none;width:auto;height:32px;padding:4px 10px;}
+input[type=text],input[type=date],select,textarea{font-family:'DM Sans',sans-serif;font-size:13px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);color:var(--text);padding:8px 12px;outline:none;transition:border-color .15s;width:100%;}
+input[type=text]:focus,select:focus,textarea:focus{border-color:var(--border3);}
+select{appearance:none;cursor:pointer;padding-right:28px;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='11' height='11' viewBox='0 0 24 24' fill='none' stroke='%238a8a96' stroke-width='2.5'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center;}
+select option{background:#1c1c21;}
+textarea{resize:vertical;min-height:64px;line-height:1.5;}
+
+/* ─── TOOLBAR ─── */
+.toolbar{display:flex;align-items:center;gap:8px;margin-bottom:16px;flex-wrap:wrap;}
+.search-wrap{position:relative;flex:1;min-width:200px;}
+.search-ico{position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--muted);font-size:15px;pointer-events:none;}
+.search-wrap input{padding-left:34px;}
+
+/* ─── CARDS ─── */
+.sec-lbl{font-size:11px;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);margin-bottom:10px;}
+.cards-list{display:flex;flex-direction:column;gap:8px;}
+.envio-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--rl);padding:15px 17px;transition:border-color .15s;animation:fadeUp .2s ease;}
+.envio-card:hover{border-color:var(--border2);}
+.envio-card.pendiente{border-left:3px solid var(--faint);}
+.envio-card.en-camino{border-left:3px solid var(--blue);}
+.envio-card.entregado{border-left:3px solid var(--green);}
+@keyframes fadeUp{from{opacity:0;transform:translateY(5px);}to{opacity:1;transform:none;}}
+.c1{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:10px;}
+.cli-nombre{font-size:15px;font-weight:600;}
+.cli-tel{font-family:'DM Mono',monospace;font-size:12px;color:var(--muted);margin-top:2px;}
+.badge{font-size:11px;font-weight:500;padding:3px 11px;border-radius:20px;white-space:nowrap;flex-shrink:0;}
+.badge.pendiente{background:var(--amber-dim);color:var(--amber);}
+.badge.en-camino{background:var(--blue-dim);color:var(--blue);}
+.badge.entregado{background:var(--green-dim);color:var(--green);}
+.c2{display:grid;grid-template-columns:1fr 1fr;gap:5px 16px;margin-bottom:10px;}
+.cf .lbl{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;display:block;margin-bottom:1px;}
+.cf .val{font-size:13px;font-weight:500;}
+.cf .val.mono{font-family:'DM Mono',monospace;}
+.cf.full{grid-column:span 2;}
+.nota{background:var(--amber-dim);border:1px solid var(--amber-border);border-radius:8px;padding:6px 11px;font-size:12px;color:var(--amber);margin-bottom:10px;}
+.divider{border:none;border-top:1px solid var(--border);margin-bottom:10px;}
+.c3{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;}
+.card-addr{font-size:13px;color:var(--muted);flex:1;}
+.card-costo{font-family:'DM Mono',monospace;font-size:15px;font-weight:500;}
+.card-actions{display:flex;gap:5px;flex-wrap:wrap;margin-top:9px;}
+.act{font-family:'DM Sans',sans-serif;font-size:11px;padding:4px 11px;border-radius:20px;border:1px solid var(--border2);background:transparent;color:var(--muted);cursor:pointer;transition:all .12s;}
+.act:hover{background:var(--surface2);color:var(--text);}
+.act.del:hover{color:var(--red);border-color:var(--red-border);}
+.act.ml{margin-left:auto;}
+.act:disabled{opacity:.4;cursor:not-allowed;}
+
+/* ─── SKELETON LOADER ─── */
+.skeleton{background:var(--surface);border:1px solid var(--border);border-radius:var(--rl);padding:15px 17px;animation:shimmer 1.4s ease-in-out infinite;}
+.skel-line{height:12px;border-radius:4px;background:var(--surface2);margin-bottom:8px;}
+@keyframes shimmer{0%,100%{opacity:1}50%{opacity:.5}}
+
+/* ─── ANDREANI TABLE ─── */
+.and-table-wrap{background:var(--surface);border:1px solid var(--border);border-radius:var(--rl);overflow:hidden;}
+.and-table{width:100%;border-collapse:collapse;font-size:13px;}
+.and-table th{font-size:10px;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);font-weight:500;padding:10px 14px;text-align:left;border-bottom:1px solid var(--border);background:var(--surface2);}
+.and-table td{padding:11px 14px;border-bottom:1px solid var(--border);vertical-align:middle;}
+.and-table tr:last-child td{border-bottom:none;}
+.and-table tr:hover td{background:var(--surface2);}
+.track-input{font-family:'DM Mono',monospace;font-size:12px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);padding:5px 9px;width:180px;outline:none;}
+.track-input:focus{border-color:var(--border3);}
+.and-empty{text-align:center;padding:36px;color:var(--muted);font-size:13px;}
+
+/* ─── HISTORIAL ─── */
+.hist-day{background:var(--surface);border:1px solid var(--border);border-radius:var(--rl);overflow:hidden;margin-bottom:8px;}
+.hist-hdr{display:flex;align-items:center;justify-content:space-between;padding:13px 16px;cursor:pointer;transition:background .15s;}
+.hist-hdr:hover{background:var(--surface2);}
+.hist-fecha{font-family:'DM Mono',monospace;font-size:14px;font-weight:500;}
+.hist-meta{display:flex;align-items:center;gap:10px;}
+.hist-meta span{font-size:12px;color:var(--muted);}
+.pill{background:var(--surface2);border:1px solid var(--border);border-radius:20px;padding:2px 10px;font-size:11px;color:var(--muted);}
+.hist-body{border-top:1px solid var(--border);padding:14px 16px;display:none;}
+.hist-body.open{display:block;}
+.hist-row{display:flex;align-items:center;gap:10px;padding:7px 10px;background:var(--surface2);border-radius:8px;font-size:13px;margin-bottom:5px;}
+.hist-row .hr-name{font-weight:500;min-width:110px;}
+.hist-row .hr-prod{color:var(--muted);flex:1;font-size:12px;}
+.hist-row .hr-costo{font-family:'DM Mono',monospace;font-size:12px;color:var(--muted);}
+.hist-row .badge{font-size:10px;padding:2px 9px;}
+.chev{color:var(--muted);font-size:12px;transition:transform .2s;}
+.chev.open{transform:rotate(180deg);}
+
+/* ─── MODAL ─── */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.65);z-index:200;align-items:center;justify-content:center;padding:16px;}
+.modal-overlay.open{display:flex;}
+.modal{background:var(--surface);border:1px solid var(--border2);border-radius:var(--rl);padding:22px;width:100%;max-width:490px;max-height:92vh;overflow-y:auto;animation:slideUp .2s ease;}
+@keyframes slideUp{from{opacity:0;transform:translateY(14px);}to{opacity:1;transform:none;}}
+.modal-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;}
+.modal-ttl{font-size:16px;font-weight:600;}
+.close-x{background:none;border:none;color:var(--muted);cursor:pointer;font-size:22px;line-height:1;}
+.close-x:hover{color:var(--text);}
+.mform{display:flex;flex-direction:column;gap:11px;}
+.frow{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.fg{display:flex;flex-direction:column;gap:4px;}
+.fg label{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;}
+.fg.full{grid-column:span 2;}
+.mfooter{display:flex;justify-content:flex-end;gap:8px;margin-top:4px;}
+
+/* ─── TOAST ─── */
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(60px);background:var(--surface3);border:1px solid var(--border2);color:var(--text);font-size:13px;padding:9px 20px;border-radius:20px;z-index:999;transition:transform .22s ease;pointer-events:none;white-space:nowrap;}
+.toast.show{transform:translateX(-50%) translateY(0);}
+
+.empty{text-align:center;padding:60px 20px;color:var(--muted);font-size:14px;line-height:2;}
+
+@media(max-width:700px){
+  .stats-grid{grid-template-columns:repeat(3,minmax(0,1fr));}
+  .frow{grid-template-columns:1fr;}
+  .fg.full{grid-column:span 1;}
+  .page{padding:16px 12px 80px;}
+  .topbar{padding:0 12px;}
+  .brand-sub{display:none;}
+}
+@media(max-width:480px){
+  .stats-grid{grid-template-columns:repeat(2,minmax(0,1fr));}
+  .and-table th:nth-child(3),.and-table td:nth-child(3){display:none;}
+}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="brand">
+    <span class="brand-name">iPro</span>
+    <span class="brand-sub">/ Logística</span>
+  </div>
+  <div class="tabs" id="main-tabs">
+    <button class="tab active" onclick="switchView('envios')">Envíos</button>
+    <button class="tab" onclick="switchView('andreani')">Andreani</button>
+    <button class="tab" onclick="switchView('historial')">Historial</button>
+  </div>
+  <div class="topbar-right" style="display:flex;align-items:center;gap:10px;">
+    <div style="display:flex;align-items:center;gap:6px;">
+      <div class="sync-dot" id="sync-dot"></div>
+      <span class="sync-label" id="sync-label">Conectado</span>
+    </div>
+    <button class="btn sm primary" onclick="abrirModal()">+ Nuevo envío</button>
+  </div>
+</div>
+
+<div class="page">
+
+  <!-- SETUP BANNER -->
+  <div class="setup-banner" id="setup-banner">
+    <p>⚙️ <strong>Configuración requerida:</strong> Pegá la URL del Web App de Google Apps Script para conectar con el Sheet.</p>
+    <input type="text" id="script-url-input" placeholder="https://script.google.com/macros/s/XXXX/exec" oninput="saveScriptUrl(this.value)">
+    <p style="margin-top:8px;font-size:12px;">Seguí el instructivo incluido para obtener esta URL. Una vez configurada, no necesitás tocarla más.</p>
+  </div>
+
+  <!-- ═══ ENVÍOS ═══ -->
+  <div class="view active" id="view-envios">
+    <div class="stats-grid">
+      <div class="stat"><div class="stat-lbl">Total</div><div class="stat-val" id="s-total">—</div></div>
+      <div class="stat"><div class="stat-lbl">Entregados</div><div class="stat-val g" id="s-entregados">—</div></div>
+      <div class="stat"><div class="stat-lbl">En camino</div><div class="stat-val b" id="s-camino">—</div></div>
+      <div class="stat"><div class="stat-lbl">Pendientes</div><div class="stat-val a" id="s-pendientes">—</div></div>
+      <div class="stat"><div class="stat-lbl">Total fletes</div><div class="stat-val ac" id="s-fletes">—</div></div>
+    </div>
+    <div class="date-row">
+      <div class="date-nav">
+        <button onclick="navDia(-1)">‹</button>
+        <div class="date-display" id="fecha-display" onclick="togglePicker('dp1')"></div>
+        <button onclick="navDia(1)">›</button>
+      </div>
+      <input type="date" id="dp1" style="display:none;width:160px;" onchange="setFecha(this.value)">
+      <button class="btn sm" onclick="irHoy()">Hoy</button>
+      <button class="btn sm" onclick="recargar()" id="btn-reload">↻ Recargar</button>
+    </div>
+    <div class="toolbar">
+      <div class="search-wrap">
+        <span class="search-ico">⌕</span>
+        <input type="text" id="buscar" placeholder="Buscar cliente, dirección o producto…" oninput="renderCards()">
+      </div>
+      <select id="filtroEstado" onchange="renderCards()" style="width:155px;">
+        <option value="">Todos los estados</option>
+        <option value="pendiente">Pendiente</option>
+        <option value="en-camino">En camino</option>
+        <option value="entregado">Entregado</option>
+      </select>
+    </div>
+    <div class="sec-lbl" id="count-lbl"></div>
+    <div class="cards-list" id="lista"></div>
+  </div>
+
+  <!-- ═══ ANDREANI ═══ -->
+  <div class="view" id="view-andreani">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:8px;">
+      <div style="display:flex;align-items:center;gap:8px;">
+        <div style="width:8px;height:8px;border-radius:50%;background:var(--accent);"></div>
+        <span style="font-size:14px;font-weight:600;color:var(--accent);">Despachos Andreani</span>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <div class="date-nav">
+          <button onclick="navDia(-1);renderAndreani()">‹</button>
+          <div class="date-display" id="fecha-display-a" onclick="togglePicker('dp2')"></div>
+          <button onclick="navDia(1);renderAndreani()">›</button>
+        </div>
+        <input type="date" id="dp2" style="display:none;width:140px;" onchange="setFecha(this.value);renderAndreani()">
+        <button class="btn sm primary" onclick="abrirModalAndreani()">+ Despacho</button>
+      </div>
+    </div>
+    <div class="and-table-wrap">
+      <table class="and-table">
+        <thead>
+          <tr>
+            <th>Destinatario</th>
+            <th>Producto</th>
+            <th>Dirección</th>
+            <th>Tracking</th>
+            <th>Estado</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="and-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ═══ HISTORIAL ═══ -->
+  <div class="view" id="view-historial">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:8px;">
+      <div class="sec-lbl" style="margin:0;">Historial de días</div>
+      <input type="text" id="hist-buscar" placeholder="Buscar en historial…" oninput="renderHistorial()" style="width:220px;">
+    </div>
+    <div id="hist-list"></div>
+  </div>
+
+</div>
+
+<!-- MODAL ENVÍO -->
+<div class="modal-overlay" id="modal-overlay">
+  <div class="modal">
+    <div class="modal-hdr">
+      <span class="modal-ttl" id="modal-ttl">Nuevo envío</span>
+      <button class="close-x" onclick="cerrarModal()">×</button>
+    </div>
+    <div class="mform">
+      <div class="frow">
+        <div class="fg"><label>Cliente *</label><input type="text" id="f-cliente" placeholder="Nombre completo"></div>
+        <div class="fg"><label>Teléfono</label><input type="text" id="f-telefono" placeholder="549..."></div>
+      </div>
+      <div class="fg full"><label>Dirección *</label><input type="text" id="f-direccion" placeholder="Calle 1234, piso, barrio"></div>
+      <div class="frow">
+        <div class="fg"><label>Producto(s) *</label><input type="text" id="f-producto" placeholder="iPhone 16 Pro 256"></div>
+        <div class="fg"><label>Costo envío *</label><input type="text" id="f-costo" placeholder="$12.000"></div>
+      </div>
+      <div class="frow">
+        <div class="fg"><label>Pago / monto</label><input type="text" id="f-pago" placeholder="USD 600 / Transfiere"></div>
+        <div class="fg"><label>Horario</label><input type="text" id="f-horario" placeholder="Hasta 17hs"></div>
+      </div>
+      <div class="fg full"><label>Notas especiales</label><textarea id="f-notas" placeholder="Llevar vuelto, instrucciones…"></textarea></div>
+      <div class="fg"><label>Estado</label>
+        <select id="f-estado">
+          <option value="pendiente">Pendiente</option>
+          <option value="en-camino">En camino</option>
+          <option value="entregado">Entregado</option>
+        </select>
+      </div>
+      <div class="mfooter">
+        <button class="btn" onclick="cerrarModal()">Cancelar</button>
+        <button class="btn primary" id="btn-guardar-envio" onclick="guardarEnvio()">Guardar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL ANDREANI -->
+<div class="modal-overlay" id="modal-and">
+  <div class="modal">
+    <div class="modal-hdr">
+      <span class="modal-ttl" id="and-ttl">Nuevo despacho Andreani</span>
+      <button class="close-x" onclick="cerrarModalAnd()">×</button>
+    </div>
+    <div class="mform">
+      <div class="frow">
+        <div class="fg"><label>Destinatario *</label><input type="text" id="fa-cliente" placeholder="Nombre"></div>
+        <div class="fg"><label>Teléfono</label><input type="text" id="fa-telefono" placeholder="549..."></div>
+      </div>
+      <div class="fg full"><label>Dirección *</label><input type="text" id="fa-direccion" placeholder="Calle 1234, ciudad"></div>
+      <div class="fg full"><label>Producto(s)</label><input type="text" id="fa-producto" placeholder="MacBook Neo 512"></div>
+      <div class="frow">
+        <div class="fg"><label>Nº de tracking</label><input type="text" id="fa-tracking" placeholder="AND-00000000"></div>
+        <div class="fg"><label>Estado</label>
+          <select id="fa-estado">
+            <option value="pendiente-desp">Pendiente despacho</option>
+            <option value="despachado">Despachado</option>
+            <option value="en-transito">En tránsito</option>
+            <option value="entregado">Entregado</option>
+          </select>
+        </div>
+      </div>
+      <div class="fg full"><label>Notas</label><textarea id="fa-notas" placeholder="Aclaraciones…"></textarea></div>
+      <div class="mfooter">
+        <button class="btn" onclick="cerrarModalAnd()">Cancelar</button>
+        <button class="btn primary" id="btn-guardar-and" onclick="guardarAndreani()">Guardar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ═══════════════════════════════════════════════
+// CONFIG
+// ═══════════════════════════════════════════════
+const SCRIPT_URL_KEY = 'ipro_script_url';
+
+function getScriptUrl() {
+  return localStorage.getItem(SCRIPT_URL_KEY) || '';
+}
+function saveScriptUrl(url) {
+  localStorage.setItem(SCRIPT_URL_KEY, url.trim());
+  checkSetup();
+  if (url.trim()) { recargar(); }
+}
+function checkSetup() {
+  const url = getScriptUrl();
+  const banner = document.getElementById('setup-banner');
+  if (!url) {
+    banner.classList.add('visible');
+    setSyncState('error', 'Sin configurar');
+  } else {
+    banner.classList.remove('visible');
+  }
+  const inp = document.getElementById('script-url-input');
+  if (inp) inp.value = url;
+}
+
+// ═══════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════
+let currentDate = todayStr();
+let enviosCache = [];
+let andreaniCache = [];
+let historialFechas = [];
+let editId = null;
+let editAndId = null;
+let saving = false;
+
+function todayStr() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+// ═══════════════════════════════════════════════
+// API CALLS
+// ═══════════════════════════════════════════════
+async function api(params, body) {
+  const url = getScriptUrl();
+  if (!url) { toast('Configurá la URL del script primero'); return null; }
+
+  setSyncState('loading', 'Sincronizando…');
+  try {
+    const qs = new URLSearchParams(params).toString();
+    const opts = body
+      ? { method: 'POST', body: JSON.stringify(body) }
+      : { method: 'GET' };
+
+    const res = await fetch(`${url}?${qs}`, opts);
+    const json = await res.json();
+
+    if (!json.ok) throw new Error(json.error || 'Error desconocido');
+    setSyncState('ok', 'Conectado');
+    return json.data;
+  } catch (err) {
+    setSyncState('error', 'Error de conexión');
+    toast('Error: ' + err.message);
+    return null;
+  }
+}
+
+async function cargarEnvios() {
+  showSkeleton();
+  const data = await api({ action: 'getAll', sheet: 'envios', fecha: currentDate });
+  if (data !== null) { enviosCache = data; renderCards(); }
+  else hideSkeleton();
+}
+
+async function cargarAndreani() {
+  const data = await api({ action: 'getAll', sheet: 'andreani', fecha: currentDate });
+  if (data !== null) { andreaniCache = data; renderAndreani(); }
+}
+
+async function cargarHistorial() {
+  const data = await api({ action: 'getDates' });
+  if (data !== null) { historialFechas = data; renderHistorial(); }
+}
+
+async function crearEnvio(body) {
+  return await api({ action: 'create', sheet: 'envios' }, body);
+}
+async function actualizarEnvio(body) {
+  return await api({ action: 'update', sheet: 'envios' }, body);
+}
+async function eliminarEnvioApi(id) {
+  return await api({ action: 'delete', sheet: 'envios', id });
+}
+async function crearAndreani(body) {
+  return await api({ action: 'create', sheet: 'andreani' }, body);
+}
+async function actualizarAndreani(body) {
+  return await api({ action: 'update', sheet: 'andreani' }, body);
+}
+async function eliminarAndreaniApi(id) {
+  return await api({ action: 'delete', sheet: 'andreani', id });
+}
+
+// ═══════════════════════════════════════════════
+// SYNC STATE INDICATOR
+// ═══════════════════════════════════════════════
+function setSyncState(state, label) {
+  const dot = document.getElementById('sync-dot');
+  const lbl = document.getElementById('sync-label');
+  dot.className = 'sync-dot' + (state === 'loading' ? ' loading' : state === 'error' ? ' error' : '');
+  lbl.textContent = label;
+}
+
+// ═══════════════════════════════════════════════
+// DATE NAV
+// ═══════════════════════════════════════════════
+function fechaLabel(str) {
+  const [y, m, d] = str.split('-').map(Number);
+  const dt = new Date(y, m - 1, d);
+  const s = dt.toLocaleDateString('es-AR', { weekday: 'long', day: 'numeric', month: 'long' });
+  return s.charAt(0).toUpperCase() + s.slice(1) + (str === todayStr() ? ' · Hoy' : '');
+}
+function updateDateDisplays() {
+  ['fecha-display', 'fecha-display-a'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = fechaLabel(currentDate);
+  });
+}
+function navDia(delta) {
+  const [y, m, d] = currentDate.split('-').map(Number);
+  currentDate = new Date(y, m - 1, d + delta).toISOString().slice(0, 10);
+  updateDateDisplays();
+  recargar();
+}
+function irHoy() {
+  currentDate = todayStr();
+  updateDateDisplays();
+  recargar();
+}
+function setFecha(v) {
+  if (v) { currentDate = v; updateDateDisplays(); recargar(); }
+  document.querySelectorAll('input[type=date]').forEach(el => el.style.display = 'none');
+}
+function togglePicker(id) {
+  const el = document.getElementById(id);
+  const open = el.style.display === 'block';
+  document.querySelectorAll('input[type=date]').forEach(e => e.style.display = 'none');
+  if (!open) { el.style.display = 'block'; el.value = currentDate; }
+}
+function recargar() {
+  cargarEnvios();
+  if (document.getElementById('view-andreani').classList.contains('active')) cargarAndreani();
+}
+
+// ═══════════════════════════════════════════════
+// VIEW SWITCHING
+// ═══════════════════════════════════════════════
+function switchView(v) {
+  document.querySelectorAll('.view').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(el => el.classList.remove('active'));
+  document.getElementById('view-' + v).classList.add('active');
+  const map = { envios: 0, andreani: 1, historial: 2 };
+  document.querySelectorAll('.tab')[map[v]].classList.add('active');
+  if (v === 'andreani') cargarAndreani();
+  if (v === 'historial') cargarHistorial();
+}
+
+// ═══════════════════════════════════════════════
+// RENDER ENVÍOS
+// ═══════════════════════════════════════════════
+function showSkeleton() {
+  document.getElementById('lista').innerHTML = [1, 2, 3].map(() =>
+    `<div class="skeleton"><div class="skel-line" style="width:40%"></div><div class="skel-line" style="width:70%"></div><div class="skel-line" style="width:55%"></div></div>`
+  ).join('');
+}
+function hideSkeleton() {
+  document.getElementById('lista').innerHTML = '';
+}
+
+function calcStats(envios) {
+  document.getElementById('s-total').textContent = envios.length;
+  document.getElementById('s-entregados').textContent = envios.filter(e => e.estado === 'entregado').length;
+  document.getElementById('s-camino').textContent = envios.filter(e => e.estado === 'en-camino').length;
+  document.getElementById('s-pendientes').textContent = envios.filter(e => e.estado === 'pendiente').length;
+  const total = envios.reduce((a, e) => {
+    const n = parseInt((e.costo || '').replace(/\D/g, ''));
+    return a + (isNaN(n) ? 0 : n);
+  }, 0);
+  document.getElementById('s-fletes').textContent = '$' + total.toLocaleString('es-AR');
+}
+
+function renderCards() {
+  const q = document.getElementById('buscar').value.toLowerCase();
+  const ef = document.getElementById('filtroEstado').value;
+  const lista = document.getElementById('lista');
+  let filtrados = enviosCache.filter(e => {
+    const mQ = !q || [e.cliente, e.direccion, e.producto, e.telefono].some(v => (v || '').toLowerCase().includes(q));
+    const mE = !ef || e.estado === ef;
+    return mQ && mE;
+  });
+  document.getElementById('count-lbl').textContent = filtrados.length + ' envío' + (filtrados.length !== 1 ? 's' : '');
+  calcStats(enviosCache);
+  if (!filtrados.length) {
+    lista.innerHTML = `<div class="empty">${enviosCache.length === 0
+      ? 'No hay envíos cargados para este día.<br><button class="btn primary sm" style="margin-top:12px" onclick="abrirModal()">+ Agregar primer envío</button>'
+      : 'Sin resultados para esa búsqueda.'}</div>`;
+    return;
+  }
+  lista.innerHTML = filtrados.map(e => `
+    <div class="envio-card ${e.estado}" id="card-${esc(e.id)}">
+      <div class="c1">
+        <div>
+          <div class="cli-nombre">${esc(e.cliente)}</div>
+          ${e.telefono ? `<div class="cli-tel">${esc(e.telefono)}</div>` : ''}
+        </div>
+        <span class="badge ${e.estado}">${lblEstado(e.estado)}</span>
+      </div>
+      <div class="c2">
+        <div class="cf"><span class="lbl">Producto</span><span class="val">${esc(e.producto)}</span></div>
+        <div class="cf"><span class="lbl">Pago</span><span class="val mono">${esc(e.pago || '—')}</span></div>
+        ${e.horario ? `<div class="cf full"><span class="lbl">Horario</span><span class="val">${esc(e.horario)}</span></div>` : ''}
+      </div>
+      ${e.notas ? `<div class="nota">⚠ ${esc(e.notas)}</div>` : ''}
+      <hr class="divider">
+      <div class="c3">
+        <div class="card-addr">📍 ${esc(e.direccion)}</div>
+        <div class="card-costo">${esc(e.costo) || '—'}</div>
+      </div>
+      <div class="card-actions">
+        <button class="act" onclick="setEstado('${e.id}','pendiente')">Pendiente</button>
+        <button class="act" onclick="setEstado('${e.id}','en-camino')">En camino</button>
+        <button class="act" onclick="setEstado('${e.id}','entregado')">✓ Entregado</button>
+        <button class="act ml" onclick="editarEnvio('${e.id}')">Editar</button>
+        <button class="act del" onclick="eliminarEnvio('${e.id}')">Eliminar</button>
+      </div>
+    </div>`).join('');
+}
+
+function esc(s) {
+  return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+function lblEstado(e) {
+  return { pendiente: 'Pendiente', 'en-camino': 'En camino', entregado: 'Entregado', 'pendiente-desp': 'Pendiente', despachado: 'Despachado', 'en-transito': 'En tránsito' }[e] || e;
+}
+
+async function setEstado(id, estado) {
+  const e = enviosCache.find(x => x.id === id);
+  if (!e) return;
+  const prev = e.estado;
+  e.estado = estado;
+  renderCards();
+  const r = await actualizarEnvio({ ...e });
+  if (!r) { e.estado = prev; renderCards(); }
+  else toast('Estado actualizado');
+}
+
+async function eliminarEnvio(id) {
+  if (!confirm('¿Eliminar este envío?')) return;
+  enviosCache = enviosCache.filter(x => x.id !== id);
+  renderCards();
+  await eliminarEnvioApi(id);
+  toast('Envío eliminado');
+}
+
+// ═══════════════════════════════════════════════
+// MODAL ENVÍO
+// ═══════════════════════════════════════════════
+function abrirModal() {
+  editId = null;
+  document.getElementById('modal-ttl').textContent = 'Nuevo envío';
+  ['cliente', 'telefono', 'direccion', 'producto', 'costo', 'pago', 'horario', 'notas'].forEach(k => document.getElementById('f-' + k).value = '');
+  document.getElementById('f-estado').value = 'pendiente';
+  document.getElementById('modal-overlay').classList.add('open');
+  setTimeout(() => document.getElementById('f-cliente').focus(), 100);
+}
+function editarEnvio(id) {
+  const e = enviosCache.find(x => x.id === id);
+  if (!e) return;
+  editId = id;
+  document.getElementById('modal-ttl').textContent = 'Editar envío';
+  ['cliente', 'telefono', 'direccion', 'producto', 'costo', 'pago', 'horario', 'notas'].forEach(k => document.getElementById('f-' + k).value = e[k] || '');
+  document.getElementById('f-estado').value = e.estado || 'pendiente';
+  document.getElementById('modal-overlay').classList.add('open');
+}
+function cerrarModal() {
+  document.getElementById('modal-overlay').classList.remove('open');
+}
+async function guardarEnvio() {
+  if (saving) return;
+  const cliente = document.getElementById('f-cliente').value.trim();
+  const direccion = document.getElementById('f-direccion').value.trim();
+  const producto = document.getElementById('f-producto').value.trim();
+  const costo = document.getElementById('f-costo').value.trim();
+  if (!cliente || !direccion || !producto || !costo) { toast('Completá los campos obligatorios'); return; }
+  const datos = {
+    cliente, telefono: document.getElementById('f-telefono').value.trim(),
+    direccion, producto, costo,
+    pago: document.getElementById('f-pago').value.trim(),
+    horario: document.getElementById('f-horario').value.trim(),
+    notas: document.getElementById('f-notas').value.trim(),
+    estado: document.getElementById('f-estado').value,
+    fecha: currentDate,
+  };
+  saving = true;
+  document.getElementById('btn-guardar-envio').disabled = true;
+  if (editId !== null) {
+    datos.id = editId;
+    const idx = enviosCache.findIndex(x => x.id === editId);
+    if (idx >= 0) enviosCache[idx] = datos;
+    renderCards();
+    await actualizarEnvio(datos);
+    toast('Envío actualizado ✓');
+  } else {
+    datos.id = 'ipro_' + Date.now();
+    enviosCache.push(datos);
+    renderCards();
+    await crearEnvio(datos);
+    toast('Envío guardado ✓');
+  }
+  saving = false;
+  document.getElementById('btn-guardar-envio').disabled = false;
+  cerrarModal();
+}
+
+// ═══════════════════════════════════════════════
+// ANDREANI
+// ═══════════════════════════════════════════════
+function renderAndreani() {
+  const tbody = document.getElementById('and-tbody');
+  if (!andreaniCache.length) {
+    tbody.innerHTML = `<tr><td colspan="6"><div class="and-empty">No hay despachos para este día.<br><button class="btn sm" style="margin-top:10px" onclick="abrirModalAndreani()">+ Agregar despacho</button></div></td></tr>`;
+    return;
+  }
+  tbody.innerHTML = andreaniCache.map(a => `
+    <tr>
+      <td><strong>${esc(a.cliente)}</strong>${a.telefono ? `<br><span style="font-family:'DM Mono',monospace;font-size:11px;color:var(--muted)">${esc(a.telefono)}</span>` : ''}</td>
+      <td style="color:var(--muted);font-size:12px">${esc(a.producto || '—')}</td>
+      <td style="font-size:12px;color:var(--muted)">${esc(a.direccion)}</td>
+      <td><input class="track-input" value="${esc(a.tracking || '')}" placeholder="AND-00000000" onblur="updateTracking('${a.id}',this.value)"></td>
+      <td>
+        <select onchange="updateAndEstado('${a.id}',this.value)" style="width:130px;font-size:12px;padding:4px 8px;">
+          <option value="pendiente-desp" ${a.estado === 'pendiente-desp' ? 'selected' : ''}>Pendiente</option>
+          <option value="despachado" ${a.estado === 'despachado' ? 'selected' : ''}>Despachado</option>
+          <option value="en-transito" ${a.estado === 'en-transito' ? 'selected' : ''}>En tránsito</option>
+          <option value="entregado" ${a.estado === 'entregado' ? 'selected' : ''}>Entregado</option>
+        </select>
+      </td>
+      <td style="text-align:right"><button class="act del" onclick="eliminarAndreani('${a.id}')">Eliminar</button></td>
+    </tr>`).join('');
+}
+
+async function updateTracking(id, val) {
+  const a = andreaniCache.find(x => x.id === id);
+  if (a && a.tracking !== val) { a.tracking = val; await actualizarAndreani({ ...a }); toast('Tracking guardado'); }
+}
+async function updateAndEstado(id, val) {
+  const a = andreaniCache.find(x => x.id === id);
+  if (a) { a.estado = val; await actualizarAndreani({ ...a }); toast('Estado actualizado'); }
+}
+async function eliminarAndreani(id) {
+  if (!confirm('¿Eliminar este despacho?')) return;
+  andreaniCache = andreaniCache.filter(x => x.id !== id);
+  renderAndreani();
+  await eliminarAndreaniApi(id);
+  toast('Despacho eliminado');
+}
+
+function abrirModalAndreani() {
+  editAndId = null;
+  document.getElementById('and-ttl').textContent = 'Nuevo despacho Andreani';
+  ['cliente', 'telefono', 'direccion', 'producto', 'tracking', 'notas'].forEach(k => document.getElementById('fa-' + k).value = '');
+  document.getElementById('fa-estado').value = 'pendiente-desp';
+  document.getElementById('modal-and').classList.add('open');
+}
+function cerrarModalAnd() {
+  document.getElementById('modal-and').classList.remove('open');
+}
+async function guardarAndreani() {
+  if (saving) return;
+  const cliente = document.getElementById('fa-cliente').value.trim();
+  const direccion = document.getElementById('fa-direccion').value.trim();
+  if (!cliente || !direccion) { toast('Completá destinatario y dirección'); return; }
+  const datos = {
+    cliente, telefono: document.getElementById('fa-telefono').value.trim(),
+    direccion, producto: document.getElementById('fa-producto').value.trim(),
+    tracking: document.getElementById('fa-tracking').value.trim(),
+    estado: document.getElementById('fa-estado').value,
+    notas: document.getElementById('fa-notas').value.trim(),
+    fecha: currentDate,
+  };
+  saving = true;
+  document.getElementById('btn-guardar-and').disabled = true;
+  datos.id = 'and_' + Date.now();
+  andreaniCache.push(datos);
+  renderAndreani();
+  await crearAndreani(datos);
+  toast('Despacho guardado ✓');
+  saving = false;
+  document.getElementById('btn-guardar-and').disabled = false;
+  cerrarModalAnd();
+}
+
+// ═══════════════════════════════════════════════
+// HISTORIAL
+// ═══════════════════════════════════════════════
+function renderHistorial() {
+  const q = (document.getElementById('hist-buscar').value || '').toLowerCase();
+  const container = document.getElementById('hist-list');
+  if (!historialFechas.length) {
+    container.innerHTML = '<div class="empty">No hay días registrados todavía.</div>';
+    return;
+  }
+  const html = historialFechas.map(fecha => {
+    const [y, m, d] = fecha.split('-').map(Number);
+    const dt = new Date(y, m - 1, d);
+    const label = dt.toLocaleDateString('es-AR', { weekday: 'short', day: 'numeric', month: 'long', year: 'numeric' });
+    return `<div class="hist-day">
+      <div class="hist-hdr" onclick="toggleHistDia('hb-${fecha}','hc-${fecha}')">
+        <div class="hist-fecha">${label}</div>
+        <div class="hist-meta">
+          ${fecha === todayStr() ? '<span class="pill" style="color:var(--accent);border-color:var(--accent-border)">Hoy</span>' : ''}
+          <span class="chev" id="hc-${fecha}">▾</span>
+        </div>
+      </div>
+      <div class="hist-body" id="hb-${fecha}">
+        <div style="color:var(--muted);font-size:12px;padding:8px 0">Hacé click para cargar los envíos de este día.</div>
+        <div style="display:flex;gap:8px;margin-top:8px;">
+          <button class="btn sm" onclick="cargarDia('${fecha}')">Ver este día</button>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+  container.innerHTML = html || '<div class="empty">Sin resultados.</div>';
+}
+
+function toggleHistDia(bodyId, chevId) {
+  document.getElementById(bodyId).classList.toggle('open');
+  document.getElementById(chevId).classList.toggle('open');
+}
+function cargarDia(fecha) {
+  currentDate = fecha;
+  updateDateDisplays();
+  switchView('envios');
+  recargar();
+  toast('Cargando ' + fechaLabel(fecha));
+}
+
+// ═══════════════════════════════════════════════
+// MODAL CLOSE
+// ═══════════════════════════════════════════════
+['modal-overlay', 'modal-and'].forEach(id => {
+  document.getElementById(id).addEventListener('click', function(e) {
+    if (e.target === this) this.classList.remove('open');
+  });
+});
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') ['modal-overlay', 'modal-and'].forEach(id => document.getElementById(id).classList.remove('open'));
+  if ((e.metaKey || e.ctrlKey) && e.key === 'k') { e.preventDefault(); abrirModal(); }
+});
+
+// ═══════════════════════════════════════════════
+// TOAST
+// ═══════════════════════════════════════════════
+let toastTimer;
+function toast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 2400);
+}
+
+// ═══════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════
+checkSetup();
+updateDateDisplays();
+if (getScriptUrl()) cargarEnvios();
+</script>
+</body>
+</html>
