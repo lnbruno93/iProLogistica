@@ -369,7 +369,7 @@ textarea{resize:vertical;min-height:64px;line-height:1.5;}
       <div class="frow">
         <div class="fg"><label>Monto cobrado</label><input type="text" id="f-pago" placeholder="900 / 28600 / Ya pago"></div>
         <div class="fg"><label>Moneda</label>
-          <select id="f-moneda"><option value="ARS">ARS — Pesos</option><option value="USD">USD — Dólares</option><option value="USDT">USDT — Tether</option><option value="EUR">EUR — Euros</option></select>
+          <select id="f-moneda"><option value="ARS">ARS — Pesos</option><option value="USD">USD — Dólares</option><option value="EUR">EUR — Euros</option><option value="USDT">USDT</option><option value="BBVA ARS LB">BBVA ARS LB</option><option value="BBVA ARS GL">BBVA ARS GL</option><option value="BBVA USD LB">BBVA USD LB</option><option value="BBVA USD GL">BBVA USD GL</option></select>
         </div>
       </div>
       <div class="frow">
@@ -760,7 +760,7 @@ function renderResumen(){
   const totalFletes=ev.reduce((a,e)=>{ const n=parseInt((e.costo||'').replace(/\D/g,'')); return a+(isNaN(n)?0:n); },0);
 
   // Por moneda (entregados)
-  const monedas={ARS:0,USD:0,USDT:0,EUR:0};
+  const monedas={ARS:0,USD:0,EUR:0,USDT:0,'BBVA ARS LB':0,'BBVA ARS GL':0,'BBVA USD LB':0,'BBVA USD GL':0};
   entregados.forEach(e=>{
     const m=e.moneda||'ARS';
     const n=parseFloat((e.pago||'').replace(/[^0-9.,]/g,'').replace(',','.'));
@@ -795,8 +795,12 @@ function renderResumen(){
         <div class="an-card-body">
           <div class="an-row"><span class="an-key">ARS — Pesos</span><span class="an-val cr">${monedas.ARS>0?'$'+Math.round(monedas.ARS).toLocaleString('es-AR'):'—'}</span></div>
           <div class="an-row"><span class="an-key">USD — Dólares</span><span class="an-val g">${monedas.USD>0?'U$D '+monedas.USD.toLocaleString('es-AR',{minimumFractionDigits:0}):'—'}</span></div>
-          <div class="an-row"><span class="an-key">USDT — Tether</span><span class="an-val g">${monedas.USDT>0?'USDT '+monedas.USDT.toLocaleString('es-AR',{minimumFractionDigits:0}):'—'}</span></div>
           <div class="an-row"><span class="an-key">EUR — Euros</span><span class="an-val b">${monedas.EUR>0?'€ '+monedas.EUR.toLocaleString('es-AR',{minimumFractionDigits:0}):'—'}</span></div>
+          <div class="an-row"><span class="an-key">USDT</span><span class="an-val g">${monedas.USDT>0?'USDT '+monedas.USDT.toLocaleString('es-AR',{minimumFractionDigits:0}):'—'}</span></div>
+          <div class="an-row"><span class="an-key">BBVA ARS LB</span><span class="an-val cr">${monedas['BBVA ARS LB']>0?'$'+Math.round(monedas['BBVA ARS LB']).toLocaleString('es-AR'):'—'}</span></div>
+          <div class="an-row"><span class="an-key">BBVA ARS GL</span><span class="an-val cr">${monedas['BBVA ARS GL']>0?'$'+Math.round(monedas['BBVA ARS GL']).toLocaleString('es-AR'):'—'}</span></div>
+          <div class="an-row"><span class="an-key">BBVA USD LB</span><span class="an-val g">${monedas['BBVA USD LB']>0?'U$D '+monedas['BBVA USD LB'].toLocaleString('es-AR',{minimumFractionDigits:0}):'—'}</span></div>
+          <div class="an-row"><span class="an-key">BBVA USD GL</span><span class="an-val g">${monedas['BBVA USD GL']>0?'U$D '+monedas['BBVA USD GL'].toLocaleString('es-AR',{minimumFractionDigits:0}):'—'}</span></div>
         </div>
       </div>
     </div>
